@@ -1,0 +1,13 @@
+{
+  "name": "frontend-chambamatch",
+  "version": "1.0.0",
+  "description": "Panel de pruebas frontend para ChambaMatch",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve .",
+    "dev": "npx serve ."
+  },
+  "dependencies": {
+    "serve": "^14.2.4"
+  }
+}
