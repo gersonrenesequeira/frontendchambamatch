@@ -225,6 +225,30 @@
         </div>
     </div>
 
+    <!-- 3. MÓDULO DE EXPORTACIONES -->
+<div class="card p-4 mt-4">
+    <h5 class="card-header-title">📤 Exportar datos (Excel / CSV / PDF)</h5>
+
+    <div class="mb-3">
+        <label for="exportDatos" class="form-label fw-semibold">¿Qué datos exportar?</label>
+        <select class="form-select" id="exportDatos">
+            <option value="todo" selected>Todo (resumen + todas las hojas)</option>
+            <option value="trabajos">Trabajos</option>
+            <option value="tecnicos">Técnicos</option>
+            <option value="postulaciones">Postulaciones</option>
+        </select>
+        <small class="text-muted">El CSV no admite "Todo": elige una colección.</small>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap">
+        <button type="button" class="btn btn-success-custom flex-fill" data-exportar="excel">📊 Excel</button>
+        <button type="button" class="btn btn-outline-secondary flex-fill" data-exportar="csv">📄 CSV</button>
+        <button type="button" class="btn btn-outline-danger flex-fill" data-exportar="pdf">📕 PDF</button>
+    </div>
+
+    <div id="logExportacion" class="terminal-log mt-3">Esperando acción...</div>
+</div>
+
     <!-- SCRIPT JS PRINCIPAL -->
     <script>
         // Enlace base del backend en Render
@@ -474,6 +498,68 @@
 
         btnRecargar.addEventListener("click", cargarUsuarios);
         document.addEventListener("DOMContentLoaded", cargarUsuarios);
+        // ==========================================
+// 6. EXPORTACIONES
+// ==========================================
+const EXPORT_URL = "https://chambamatch-app-backend.onrender.com/api/exportaciones";
+const exportDatos = document.getElementById("exportDatos");
+const logExportacion = document.getElementById("logExportacion");
+const botonesExportar = document.querySelectorAll("[data-exportar]");
+
+function logExport(texto, ok = true) {
+    logExportacion.style.color = ok ? "#2ec4b6" : "#ff6b6b";
+    logExportacion.textContent = texto;
+}
+
+async function descargarExportacion(formato) {
+    const datos = exportDatos.value;
+
+    if (formato === "csv" && datos === "todo") {
+        logExport("✕ El CSV es plano: elige trabajos, técnicos o postulaciones.", false);
+        return;
+    }
+
+    botonesExportar.forEach(b => (b.disabled = true));
+    logExport(`Generando ${formato.toUpperCase()} de "${datos}"... (si el servidor estaba dormido puede tardar)`);
+
+    try {
+        const res = await fetch(`${EXPORT_URL}/${formato}?datos=${encodeURIComponent(datos)}`);
+
+        if (!res.ok) {
+            let mensaje = `Error ${res.status}`;
+            try { mensaje = (await res.json()).mensaje || mensaje; } catch (_) {}
+            throw new Error(mensaje);
+        }
+
+        // Nombre del archivo desde el header (o uno de respaldo)
+        const disposicion = res.headers.get("Content-Disposition") || "";
+        const coincide = disposicion.match(/filename="?([^";]+)"?/i);
+        const nombreArchivo = coincide
+            ? coincide[1]
+            : `chambamatch-${datos}-${new Date().toISOString().slice(0, 10)}.${formato === "excel" ? "xlsx" : formato}`;
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = nombreArchivo;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+
+        logExport(`✓ Descargado: ${nombreArchivo}`);
+    } catch (error) {
+        console.error("Error al exportar:", error);
+        logExport(`✕ ${error.message || "Error de conexión con el servidor."}`, false);
+    } finally {
+        botonesExportar.forEach(b => (b.disabled = false));
+    }
+}
+
+botonesExportar.forEach(btn =>
+    btn.addEventListener("click", () => descargarExportacion(btn.dataset.exportar))
+);
     </script>
 </body>
 
